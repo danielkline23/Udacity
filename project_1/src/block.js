@@ -40,16 +40,17 @@ class Block {
       // Save in auxiliary variable the current block hash
       const verifiedHash = self.hash;
       // Recalculate the hash of the Block
-      hash = SHA256(JSON.stringify(self));
+      self.hash = null;
+      const expectedHash = SHA256(JSON.stringify(self)).toString();
+      self.hash = verifiedHash;
       // Comparing if the hashes changed
-      if (hash === self.verifiedHash) {
+      if (verifiedHash === expectedHash) {
         // Returning the Block is valid
         resolve(true);
       } else {
         // Returning the Block is not valid
         reject(false);
       }
-
     });
   }
 
@@ -62,24 +63,23 @@ class Block {
    *  3. Resolve with the data and make sure that you don't need to return the data for the `genesis block`
    *     or Reject with an error.
    */
-  getBData() {
-    let self = this
-    return new Promise((resolve, reject) => {
-      if (self.height > 0) {
-        resolve(JSON.parse(hex2ascii(self.body)));
-      } else {
-        reject('Genesis Block');
-      }
 
-    })
+
+  getBData() {
     // Getting the encoded data saved in the Block
+    //JSON.parse(hex2ascii(this.body))
     // Decoding the data to retrieve the JSON representation of the object
     // Parse the data to an object to be retrieve.
-
     // Resolve with the data if the object isn't the Genesis block
-
+    const dataEncoded = this.body;
+    let dataJson = hex2ascii(dataEncoded);
+    let data = JSON.parse(dataJson);
+    if (data && this.height > 0) {
+      return data;
+    }
   }
 
 }
 
-module.exports.Block = Block; // Exposing the Block class as a module
+// Exposing the Block class as a module
+module.exports.Block = Block;

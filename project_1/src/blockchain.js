@@ -66,16 +66,23 @@ class Blockchain {
   _addBlock(block) {
     let self = this;
     return new Promise(async (resolve, reject) => {
-      block.height = self.chain.length;
-
+      //Variable for comparison to validate length after block added successfully
+      const currentLength = self.chain.length;
+      //Previous Block Hash
+      block.previousBlockHash = self.chain[currentLength - 1] ? self.chain[currentLength - 1].hash : null;
+      //Block Height
+      block.height = currentLength;
+      //Block Created Time
       block.time = new Date().getTime().toString().slice(0, -3);
-      if (self.chain.length > 0) {
-        block.previousBlockHash = self.chain[this.chain.length - 1].hash;
+      //New Hash for Block
+      block.hash = await SHA256(JSON.stringify(block)).toString();
+      if (this.chain.length === currentLength && await self.validateChain()) {
+        this.chain.push(block);
+        this.height = self.chain.length - 1;
+        resolve(block);
+      } else {
+        reject("Failed to add Block");
       }
-      block.hash = SHA256(JSON.stringify(block)).toString();
-      self.chain.push(block);
-      self.height++;
-      resolve(true);
     });
   }
 
@@ -115,14 +122,17 @@ class Blockchain {
     return new Promise(async (resolve, reject) => {
       const requestTime = parseInt(message.split(':')[1]);
       const currentTime = parseInt(new Date().getTime().toString().slice(0, -3));
-      if (((currentTime - requestTime) / 60) >= 5) {
+      if (((currentTime - requestTime) / 60) <= 5) {
         if (bitcoinMessage.verify(message, address, signature)) {
-          let newBlock = new BlockClass.Block((star));
-          newBlock.owner = address;
-          self._addBlock(newBlock);
-          resolve(newBlock);
+          const block = new BlockClass.Block({
+            owner: address,
+            star: star
+          });
+          const addedBlock = await self._addBlock(block);
+          const err = await self.validateChain();
+          resolve(addedBlock);
         } else {
-          reject('Invalid Signature');
+          reject(err);
         }
       } else {
         reject('Time Out:Please submit within 5 minutes of requesting');
@@ -140,7 +150,7 @@ class Blockchain {
   getBlockByHash(hash) {
     let self = this;
     return new Promise((resolve, reject) => {
-      resolve(self.chain.filter(block => block.hash === hash)[0]);
+      resolve(self.chain.find(block => block.hash === hash));
     });
   }
 
